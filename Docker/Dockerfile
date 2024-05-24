@@ -10,8 +10,8 @@ ARG SHODAN_API_KEY="XXXXXXXXXXXXXX"
 ARG LANG=en_US.UTF-8
 ARG LANGUAGE=en_US
 
-ARG GIT_REPOSITORY_AXIOM="https://github.com/pry0cc/axiom"
-ARG GIT_REPOSITORY_RECONFTW="https://github.com/six2dez/reconftw"
+ARG GIT_REPOSITORY_AXIOM="https://github.com/tdf-discipline-cybersecurity/axiom"
+ARG GIT_REPOSITORY_RECONFTW="https://github.com/tdf-discipline-cybersecurity/reconftw"
 
 ##################################################
 ###> Do NOT change anything beyond this point <###
@@ -21,10 +21,10 @@ FROM kalilinux/kali-rolling:latest AS base
 
 LABEL org.label-schema.name='reconftw'
 LABEL org.label-schema.description='A simple script for full recon'
-LABEL org.label-schema.usage='https://github.com/six2dez/reconftw'
-LABEL org.label-schema.url='https://github.com/six2dez/reconftw'
-LABEL org.label-schema.docker.cmd.devel='docker run --rm -ti six2dez/reconftw'
-LABEL MAINTAINER="six2dez"
+LABEL org.label-schema.usage='https://github.com/tdf-discipline-cybersecurity/reconftw'
+LABEL org.label-schema.url='https://github.com/tdf-discipline-cybersecurity/reconftw'
+LABEL org.label-schema.docker.cmd.devel='docker run --rm -ti tdf-discipline-cybersecurity/reconftw'
+LABEL MAINTAINER="dtf-discipline-cybersecurity"
 
 ARG COLLAB_SERVER
 ARG XSS_SERVER
@@ -128,6 +128,7 @@ COPY notify.conf /root/.config/notify/notify.conf
 RUN <<eot
 ###>> Regenerate SSH Keys <<###
 # You REALLY do NOT want to use the default SSH keys in the base image
+mkdir -p /root/.ssh
 find /root/.ssh -type f -delete
 ssh-keygen -b 2048 -t rsa -f /root/.ssh/axiom_rsa -q -N ""
 cat /root/.ssh/axiom_rsa.pub > /root/.axiom/configs/authorized_keys
