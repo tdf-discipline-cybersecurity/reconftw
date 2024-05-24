@@ -9,7 +9,7 @@ double_check=false
 ARCH=$(uname -m)
 case $ARCH in
 amd64 | x86_64) IS_ARM="False" ;;
-arm64 | armv6l)
+arm64 | armv6l | aarch64)
 	IS_ARM="True"
 	RPI_4=$([[ $ARCH == "arm64" ]] && echo "True" || echo "False")
 	RPI_3=$([[ $ARCH == "arm64" ]] && echo "False" || echo "True")
@@ -32,6 +32,7 @@ fi
 # Declaring Go tools and their installation commands
 declare -A gotools
 gotools["gf"]="go install -v github.com/tomnomnom/gf@latest"
+gotools["brutespray"]="go install -v github.com/x90skysn3k/brutespray@latest"
 gotools["qsreplace"]="go install -v github.com/tomnomnom/qsreplace@latest"
 gotools["amass"]="go install -v github.com/owasp-amass/amass/v3/...@master"
 gotools["ffuf"]="go install -v github.com/ffuf/ffuf/v2@latest"
@@ -73,18 +74,16 @@ gotools["s3scanner"]="go install -v github.com/sa7mon/s3scanner@latest"
 gotools["nmapurls"]="go install -v github.com/sdcampbell/nmapurls@latest"
 gotools["shortscan"]="go install -v github.com/bitquark/shortscan/cmd/shortscan@latest"
 gotools["sns"]="go install github.com/sw33tLie/sns@latest"
+gotools["ppmap"]="go install -v github.com/kleiton0x00/ppmap@latest"
 
 # Declaring repositories and their paths
 declare -A repos
 repos["dorks_hunter"]="six2dez/dorks_hunter"
 repos["dnsvalidator"]="vortexau/dnsvalidator"
 repos["interlace"]="codingo/Interlace"
-repos["brutespray"]="x90skysn3k/brutespray"
 repos["wafw00f"]="EnableSecurity/wafw00f"
 repos["gf"]="tomnomnom/gf"
 repos["Gf-Patterns"]="1ndianl33t/Gf-Patterns"
-repos["xnLinkFinder"]="xnl-h4ck3r/xnLinkFinder"
-repos["waymore"]="xnl-h4ck3r/waymore"
 repos["Corsy"]="s0md3v/Corsy"
 repos["CMSeeK"]="Tuhinshubhra/CMSeeK"
 repos["fav-up"]="pielco11/fav-up"
@@ -104,10 +103,11 @@ repos["regulator"]="cramppet/regulator"
 repos["ghauri"]="r0oth3x49/ghauri"
 repos["gitleaks"]="gitleaks/gitleaks"
 repos["trufflehog"]="trufflesecurity/trufflehog"
-repos["dontgo403"]="devploit/dontgo403"
+repos["nomore403"]="devploit/nomore403"
 repos["SwaggerSpy"]="UndeadSec/SwaggerSpy"
 repos["LeakSearch"]="JoelGMSec/LeakSearch"
-repos["Wapiti"]="wapiti-scanner/wapiti"
+repos["ffufPostprocessing"]="Damian89/ffufPostprocessing"
+repos["misconfig-mapper"]="intigriti/misconfig-mapper"
 
 function banner() {
 	tput clear
@@ -123,15 +123,6 @@ function banner() {
 	printf "    ░        ░  ░░ ░          ░ ░           ░                      ░    \n"
 	printf "                 ░                                                      \n"
 	printf " ${reconftw_version}                                         by @six2dez\n"
-}
-
-function install_ppfuzz() {
-	local url=$1
-	local tar_file=$2
-
-	eval wget -N -c "$url" $DEBUG_STD
-	eval $SUDO tar -C /usr/local/bin/ -xzf "$tar_file" $DEBUG_STD
-	eval $SUDO rm -rf "$tar_file" $DEBUG_STD
 }
 
 # This function installs various tools and repositories as per the configuration.
@@ -191,7 +182,7 @@ function install_tools() {
 				continue
 			}
 		fi
-		eval git clone https://github.com/${repos[$repo]} "${dir}"/$repo $DEBUG_STD
+		eval git clone --filter="blob:none" https://github.com/${repos[$repo]} "${dir}"/$repo $DEBUG_STD
         eval cd "${dir}"/$repo $DEBUG_STD
 		eval git pull $DEBUG_STD
 		exit_status=$?
@@ -214,13 +205,20 @@ function install_tools() {
             if [[ "gitleaks" == "$repo" ]]; then
                 eval make build $DEBUG_STD && eval $SUDO cp ./gitleaks /usr/local/bin/ $DEBUG_ERROR
             fi
-            if [[ "dontgo403" == "$repo" ]]; then
-                eval go get $DEBUG_STD && eval go build $DEBUG_STD && eval chmod +x ./dontgo403 $DEBUG_STD
+            if [[ "nomore403" == "$repo" ]]; then
+                eval go get $DEBUG_STD && eval go build $DEBUG_STD && eval chmod +x ./nomore403 $DEBUG_STD
             fi
-			 if [[ "wapiti" == "$repo" ]]; then
-                eval make install $DEBUG_STD
-            fi
-        fi
+			if [[ "ffufPostprocessing" == "$repo" ]]; then
+				eval git reset --hard origin/main $DEBUG_STD
+				eval git pull $DEBUG_STD
+				eval go build -o ffufPostprocessing main.go $DEBUG_STD && eval chmod +x ./ffufPostprocessing $DEBUG_STD
+			fi
+			if [[ "misconfig-mapper" == "$repo" ]]; then
+				eval git reset --hard origin/main $DEBUG_STD
+				eval git pull $DEBUG_STD
+				eval go build -o misconfig-mapper $DEBUG_STD && eval chmod +x ./misconfig-mapper $DEBUG_STD
+			fi
+		fi
 		if [[ "gf" == "$repo" ]]; then
             eval cp -r examples ~/.gf $DEBUG_ERROR
         elif [[ "Gf-Patterns" == "$repo" ]]; then
@@ -232,23 +230,6 @@ function install_tools() {
 		}
 	done
 
-	if [[ "True" == "$IS_ARM" ]]; then
-        if [[ "True" == "$RPI_3" ]]; then
-            install_ppfuzz "https://github.com/dwisiswant0/ppfuzz/releases/download/v1.0.2/ppfuzz-v1.0.2-armv7-unknown-linux-gnueabihf.tar.gz" "ppfuzz-v1.0.2-armv7-unknown-linux-gnueabihf.tar.gz"
-        elif [[ "True" == "$RPI_4" ]]; then
-            install_ppfuzz "https://github.com/dwisiswant0/ppfuzz/releases/download/v1.0.2/ppfuzz-v1.0.2-aarch64-unknown-linux-gnueabihf.tar.gz" "ppfuzz-v1.0.2-aarch64-unknown-linux-gnueabihf.tar.gz"
-        fi
-    elif [[ "True" == "$IS_MAC" ]]; then
-        if [[ "True" == "$IS_ARM" ]]; then
-			install_ppfuzz "https://github.com/dwisiswant0/ppfuzz/releases/download/v1.0.2/ppfuzz-v1.0.2-armv7-unknown-linux-gnueabihf.tar.gz" "ppfuzz-v1.0.2-armv7-unknown-linux-gnueabihf.tar.gz"
-		else
-			install_ppfuzz "https://github.com/dwisiswant0/ppfuzz/releases/download/v1.0.2/ppfuzz-v1.0.2-x86_64-apple-darwin.tar.gz" "ppfuzz-v1.0.2-x86_64-apple-darwin.tar.gz"
-		fi
-	else
-		install_ppfuzz "https://github.com/dwisiswant0/ppfuzz/releases/download/v1.0.2/ppfuzz-v1.0.2-x86_64-unknown-linux-musl.tar.gz" "ppfuzz-v1.0.2-x86_64-unknown-linux-musl.tar.gz"
-	fi
-	eval $SUDO chmod 755 /usr/local/bin/ppfuzz
-	eval $SUDO strip -s /usr/local/bin/ppfuzz $DEBUG_STD
 	eval notify $DEBUG_STD
 	eval subfinder $DEBUG_STD
 	eval subfinder $DEBUG_STD
@@ -306,11 +287,10 @@ install_apt() {
 	eval $SUDO apt update -y $DEBUG_STD
 	eval $SUDO DEBIAN_FRONTEND="noninteractive" apt install chromium-browser -y $DEBUG_STD
 	eval $SUDO DEBIAN_FRONTEND="noninteractive" apt install chromium -y $DEBUG_STD
-	eval $SUDO DEBIAN_FRONTEND="noninteractive" apt install python3 python3-pip python3-virtualenv build-essential gcc cmake ruby whois git curl libpcap-dev wget zip python3-dev pv dnsutils libssl-dev libffi-dev libxml2-dev libxslt1-dev zlib1g-dev nmap jq apt-transport-https lynx medusa xvfb libxml2-utils procps bsdmainutils libdata-hexdump-perl -y $DEBUG_STD
+	eval $SUDO DEBIAN_FRONTEND="noninteractive" apt install python3 python3-pip python3-virtualenv build-essential gcc cmake ruby whois git curl libpcap-dev wget zip python3-dev pv dnsutils libssl-dev libffi-dev libxml2-dev libxslt1-dev zlib1g-dev nmap jq apt-transport-https lynx medusa xvfb libxml2-utils procps bsdmainutils libdata-hexdump-perl libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon-x11-0 libxcomposite-dev libxdamage1 libxrandr2 libgbm-dev libpangocairo-1.0-0 libasound2 -y $DEBUG_STD
 	curl https://sh.rustup.rs -sSf | sh -s -- -y >/dev/null 2>&1
 	eval source "${HOME}/.cargo/env $DEBUG_STD"
 	eval cargo install ripgen $DEBUG_STD
-	eval source "${HOME}/.cargo/env $DEBUG_STD"
 }
 
 install_brew() {
@@ -349,26 +329,28 @@ eval git config --global --unset https.proxy $DEBUG_STD
 
 printf "${bblue} Running: Looking for new reconFTW version${reset}\n\n"
 
-if ! eval git fetch $DEBUG_STD; then
-	echo "Failed to fetch updates."
-	exit 1
-fi
+timeout 10 git fetch
+exit_status=$?
+if [[ ${exit_status} -eq 0 ]]; then
 
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-HEADHASH=$(git rev-parse HEAD)
-UPSTREAMHASH=$(git rev-parse "${BRANCH}@{upstream}")
+	BRANCH=$(git rev-parse --abbrev-ref HEAD)
+	HEADHASH=$(git rev-parse HEAD)
+	UPSTREAMHASH=$(git rev-parse "${BRANCH}@{upstream}")
 
-if [[ $HEADHASH != "$UPSTREAMHASH" ]]; then
-	printf "${yellow} There is a new version, updating...${reset}\n\n"
-	if git status --porcelain | grep -q 'reconftw.cfg$'; then
-		mv reconftw.cfg reconftw.cfg_bck
-		printf "${yellow} reconftw.cfg has been backed up in reconftw.cfg_bck${reset}\n\n"
+	if [[ $HEADHASH != "$UPSTREAMHASH" ]]; then
+		printf "${yellow} There is a new version, updating...${reset}\n\n"
+		if git status --porcelain | grep -q 'reconftw.cfg$'; then
+			mv reconftw.cfg reconftw.cfg_bck
+			printf "${yellow} reconftw.cfg has been backed up in reconftw.cfg_bck${reset}\n\n"
+		fi
+		eval git reset --hard $DEBUG_STD
+		eval git pull $DEBUG_STD
+		printf "${bgreen} Updated! Running new installer version...${reset}\n\n"
+	else
+		printf "${bgreen} reconFTW is already up to date!${reset}\n\n"
 	fi
-	eval git reset --hard $DEBUG_STD
-	eval git pull $DEBUG_STD
-	printf "${bgreen} Updated! Running new installer version...${reset}\n\n"
 else
-	printf "${bgreen} reconFTW is already up to date!${reset}\n\n"
+	printf "\n${bred} Unable to check updates ${reset}\n\n"
 fi
 
 printf "${bblue} Running: Installing system packages ${reset}\n\n"
@@ -462,7 +444,7 @@ printf "${bblue}\n Running: Downloading required files ${reset}\n\n"
 #wget -q -O - https://raw.githubusercontent.com/devanshbatham/ParamSpider/master/gf_profiles/potential.json > ~/.gf/potential.json - Removed
 wget -q -O - https://raw.githubusercontent.com/m4ll0k/Bug-Bounty-Toolz/master/getjswords.py >${tools}/getjswords.py
 wget -q -O - https://raw.githubusercontent.com/n0kovo/n0kovo_subdomains/main/n0kovo_subdomains_huge.txt >${subs_wordlist_big}
-wget -q -O - https://raw.githubusercontent.com/six2dez/resolvers_reconftw/main/resolvers_trusted.txt >${resolvers_trusted}
+wget -q -O - https://gist.githubusercontent.com/six2dez/ae9ed7e5c786461868abd3f2344401b6/raw/trusted_resolvers.txt >${resolvers_trusted}
 wget -q -O - https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt >${resolvers}
 wget -q -O - https://gist.github.com/six2dez/a307a04a222fab5a57466c51e1569acf/raw >${subs_wordlist}
 wget -q -O - https://gist.github.com/six2dez/ffc2b14d283e8f8eff6ac83e20a3c4b4/raw >${tools}/permutations_list.txt
@@ -521,7 +503,7 @@ if [[ $generate_resolvers == true ]]; then
         [[ -s "tmp_resolvers" ]] && cat tmp_resolvers | anew -q $resolvers
         [[ -s "tmp_resolvers" ]] && rm -f tmp_resolvers &>/dev/null
         [[ ! -s $resolvers ]] && wget -q -O - https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt >${resolvers}
-        [[ ! -s $resolvers_trusted ]] && wget -q -O - https://raw.githubusercontent.com/six2dez/resolvers_reconftw/main/resolvers_trusted.txt >${resolvers_trusted}
+        [[ ! -s $resolvers_trusted ]] && wget -q -O - https://gist.githubusercontent.com/six2dez/ae9ed7e5c786461868abd3f2344401b6/raw/trusted_resolvers.txt >${resolvers_trusted}
 		printf "${yellow} Resolvers updated\n ${reset}\n\n"
 	fi
 	generate_resolvers=false
@@ -529,7 +511,7 @@ else
 	[[ ! -s $resolvers ]] || if [[ $(find "$resolvers" -mtime +1 -print) ]]; then
 		${reset}"\n\nChecking resolvers lists...\n Accurate resolvers are the key to great results\n Downloading new resolvers ${reset}\n\n"
 		wget -q -O - https://raw.githubusercontent.com/trickest/resolvers/main/resolvers.txt >${resolvers}
-		wget -q -O - https://raw.githubusercontent.com/six2dez/resolvers_reconftw/main/resolvers_trusted.txt >${resolvers_trusted}
+		wget -q -O - https://gist.githubusercontent.com/six2dez/ae9ed7e5c786461868abd3f2344401b6/raw/trusted_resolvers.txt >${resolvers_trusted}
 		printf "${yellow} Resolvers updated\n ${reset}\n\n"
 	fi
 fi
@@ -540,6 +522,6 @@ eval strip -s "$HOME"/go/bin/* $DEBUG_STD
 eval $SUDO cp "$HOME"/go/bin/* /usr/local/bin/ $DEBUG_STD
 
 
-printf "${yellow} Remember set your api keys:\n - amass (~/.config/amass/config.ini)\n - subfinder (~/.config/subfinder/provider-config.yaml)\n - GitLab (~/Tools/.gitlab_tokens)\n - SSRF Server (COLLAB_SERVER in reconftw.cfg or env var) \n - Blind XSS Server (XSS_SERVER in reconftw.cfg or env var) \n - notify (~/.config/notify/provider-config.yaml) \n - WHOISXML API (WHOISXML_API in reconftw.cfg or env var)\n\n${reset}"
+printf "${yellow} Remember set your api keys:\n - amass (~/.config/amass/config.ini)\n - subfinder (~/.config/subfinder/provider-config.yaml)\n - GitHub (~/Tools/.github_tokens)\n - GitLab (~/Tools/.gitlab_tokens)\n - SSRF Server (COLLAB_SERVER in reconftw.cfg or env var) \n - Waymore ( ~/.config/waymore/config.yml) \n - Blind XSS Server (XSS_SERVER in reconftw.cfg or env var) \n - notify (~/.config/notify/provider-config.yaml) \n - WHOISXML API (WHOISXML_API in reconftw.cfg or env var)\n\n${reset}"
 printf "${bgreen} Finished!${reset}\n\n"
 printf "\n\n${bgreen}#######################################################################${reset}\n"
