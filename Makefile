@@ -9,7 +9,7 @@ bootstrap:
 	gh repo create $(PRIVATE_REPO) --private
 	gh repo clone $(PRIVATE_REPO) ~/$(PRIVATE_REPO)
 	cd ~/$(PRIVATE_REPO) && git commit --allow-empty -m "Empty commit" && \
-		git remote add upstream https://github.com/six2dez/reconftw && \
+		git remote add upstream https://github.com/tdf-discipline-cybersecurity/reconftw && \
 		git fetch upstream && \
 		git rebase upstream/main $(shell git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@') && \
 		mkdir Recon && \
